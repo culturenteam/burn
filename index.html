@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="https://vitejs.dev/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tezos dApp - Phase 1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              tezos: '#2C7DF7',
+              dark: '#0f172a',
+              card: '#1e293b'
+            }
+          }
+        }
+      }
+    </script>
+    <script>
+      // Polyfill for global used by some wallet libraries in browser environments
+      if (typeof global === 'undefined') {
+        window.global = window;
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "@taquito/beacon-wallet": "https://aistudiocdn.com/@taquito/beacon-wallet@^23.0.3",
+    "@airgap/beacon-types": "https://aistudiocdn.com/@airgap/beacon-types@^4.6.2",
+    "@taquito/taquito": "https://aistudiocdn.com/@taquito/taquito@^23.0.3"
+  }
+}
+</script>
+</head>
+  <body class="bg-dark text-white antialiased">
+    <div id="root"></div>
+  </body>
+</html>

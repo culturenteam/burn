@@ -1,0 +1,5 @@
+{
+  "name": "Tezos Ghostnet dApp",
+  "description": "A Phase 1 Tezos dApp demonstrating wallet connection using Taquito and Beacon Wallet on Ghostnet.",
+  "requestFramePermissions": []
+}
