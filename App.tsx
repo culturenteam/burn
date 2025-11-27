@@ -9,6 +9,7 @@ import { WalletInfo } from './components/WalletInfo';
 import { DebugInfo } from './components/DebugInfo';
 import { NFTGrid } from './components/NFTGrid';
 import { BurnModal } from './components/BurnModal';
+import AdminPanel from './components/AdminPanel';
 import { fetchNFTs } from './services/tzkt';
 import { burnNFT } from './services/burn';
 import { NFT } from './types';
@@ -187,6 +188,11 @@ const App: React.FC = () => {
                   <span>DISCONNECT</span>
                 </button>
               </div>
+            </div>
+
+            {/* Admin Panel - Only visible to creator */}
+            <div className="px-8 py-6">
+              <AdminPanel />
             </div>
 
             {/* Success/Error Messages */}

@@ -12,3 +12,4 @@ export { Layout } from './Layout';
 // Feature Components
 export { WalletInfo } from './WalletInfo';
 export { NetworkBadge } from './NetworkBadge';
+export { default as AdminPanel } from './AdminPanel';
