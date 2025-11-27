@@ -1,0 +1,87 @@
+# Burn and Reward Contract
+# Parameter: (nft_contract, nft_token_id, nft_amount, reward_amount)
+# Storage: (tv_contract, tv_token_id, burn_address)
+
+parameter (pair (address %nft_contract) (pair (nat %nft_token_id) (pair (nat %nft_amount) (nat %reward_amount))));
+storage (pair (address %tv_contract) (pair (nat %tv_token_id) (address %burn_address)));
+
+code {
+  UNPAIR;
+  SWAP;
+  
+  # Extract storage values
+  DUP;
+  CAR;  # tv_contract
+  SWAP;
+  DUP;
+  CDR;
+  CAR;  # tv_token_id
+  SWAP;
+  CDR;
+  CDR;  # burn_address
+  
+  # Extract parameter values
+  DIG 3;
+  DUP;
+  CAR;  # nft_contract
+  SWAP;
+  DUP;
+  CDR;
+  CAR;  # nft_token_id
+  SWAP;
+  DUP;
+  CDR;
+  CDR;
+  CAR;  # nft_amount
+  SWAP;
+  CDR;
+  CDR;
+  CDR;  # reward_amount
+  
+  # Now stack is: reward_amount, nft_amount, nft_token_id, nft_contract, burn_address, tv_token_id, tv_contract
+  
+  # Build NFT burn operation (transfer NFT from sender to burn address)
+  DIG 3;  # nft_contract
+  CONTRACT %transfer (list (pair address (list (pair address (pair nat nat)))));
+  IF_NONE { PUSH string "Invalid NFT contract"; FAILWITH } {};
+  PUSH mutez 0;
+  NIL (pair address (list (pair address (pair nat nat))));
+  NIL (pair address (pair nat nat));
+  DIG 4;  # nft_amount
+  DIG 4;  # nft_token_id
+  PAIR;
+  DIG 4;  # burn_address
+  PAIR;
+  CONS;
+  SENDER;
+  PAIR;
+  CONS;
+  TRANSFER_TOKENS;
+  
+  # Build True Vision reward operation (transfer TV from contract to sender)
+  DIG 2;  # tv_contract
+  CONTRACT %transfer (list (pair address (list (pair address (pair nat nat)))));
+  IF_NONE { PUSH string "Invalid TV contract"; FAILWITH } {};
+  PUSH mutez 0;
+  NIL (pair address (list (pair address (pair nat nat))));
+  NIL (pair address (pair nat nat));
+  DIG 3;  # reward_amount
+  DIG 3;  # tv_token_id
+  PAIR;
+  SENDER;
+  PAIR;
+  CONS;
+  SELF_ADDRESS;
+  PAIR;
+  CONS;
+  TRANSFER_TOKENS;
+  
+  # Return both operations and storage
+  NIL operation;
+  DIG 2;
+  CONS;
+  SWAP;
+  CONS;
+  DIG 2;
+  PAIR
+}

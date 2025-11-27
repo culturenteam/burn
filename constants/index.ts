@@ -50,9 +50,10 @@ export const TRUE_VISION = {
 /**
  * Burn Rewarder Contract
  * Smart contract that handles automatic True Vision distribution
+ * User sends NFT to contract + calls claim_reward() in batch
  * Deployed: 2025-11-27
  */
-export const BURN_REWARDER_CONTRACT = 'KT1RCUeU8BkKgRdt6pZfcQDB7FCQEhYZrghi';
+export const BURN_REWARDER_CONTRACT = 'KT1QiosCF8wzC9eBUq6u4JmHvFJGTqtPRdBj';
 
 /**
  * API Configuration (Phase 2)

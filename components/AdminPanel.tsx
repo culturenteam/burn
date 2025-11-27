@@ -7,7 +7,7 @@ const AdminPanel: React.FC = () => {
   const { userAddress, tezos } = useWallet();
   const [deploying, setDeploying] = useState(false);
   const [deployedAddress, setDeployedAddress] = useState<string | null>(
-    localStorage.getItem('BURN_REWARDER_CONTRACT') || 'KT1RCUeU8BkKgRdt6pZfcQDB7FCQEhYZrghi'
+    localStorage.getItem('BURN_REWARDER_CONTRACT')
   );
   const [error, setError] = useState<string | null>(null);
   const [deploymentHash, setDeploymentHash] = useState<string | null>(null);
@@ -84,83 +84,54 @@ const AdminPanel: React.FC = () => {
     try {
       console.log('🚀 Deploying burn and reward contract...');
 
-      // SmartPy generated Michelson - burn_and_reward entrypoint
-      const michelsonCode = `parameter (pair %burn_and_reward (address %nft_contract) (pair (nat %nft_token_id) (pair (nat %nft_amount) (nat %reward_amount))));
-storage (pair (address %tv_contract) (pair (nat %tv_token_id) (address %burn_address)));
+      // Simple Swap contract - Correct FA2 transfer format
+      const michelsonCode = `parameter (unit %claim_reward);
+storage (pair (nat %reward_amount) (pair (address %tv_contract) (nat %tv_token_id)));
 code {
-  UNPAIR;
-  SWAP;
+  CDR;
+  # Get TV contract address
   DUP;
-  DUG 2;
+  CDR;
   CAR;
-  DIG 2;
-  DUP;
-  DUG 3;
-  CAR;
+  # Get transfer entrypoint
   CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount))))));
-  IF_NONE { PUSH int 29; FAILWITH } {};
+  IF_NONE { PUSH string "Invalid TV contract"; FAILWITH } {};
   PUSH mutez 0;
+  # Build transfer list
   NIL (pair address (list (pair address (pair nat nat))));
+  # Build txs list
   NIL (pair address (pair nat nat));
-  DIG 5;
-  DUP;
-  DUG 6;
-  CDR;
-  CDR;
+  # Get reward amount
+  DUP 4;
   CAR;
-  DIG 6;
-  DUP;
-  DUG 7;
+  # Get token_id
+  DUP 5;
   CDR;
-  CAR;
-  DIG 7;
-  DUP;
-  DUG 8;
-  GET 5;
-  PAIR 3;
-  CONS;
+  CDR;
+  PAIR;
+  # Get recipient (sender)
   SENDER;
   PAIR;
   CONS;
+  # Get from (self)
+  SELF_ADDRESS;
+  PAIR;
+  CONS;
+  # Execute transfer
   TRANSFER_TOKENS;
   NIL operation;
   SWAP;
   CONS;
-  DIG 3;
-  DUP;
-  DUG 4;
-  CAR;
-  CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount))))));
-  IF_NONE { PUSH int 58; FAILWITH } {};
-  PUSH mutez 0;
-  NIL (pair address (list (pair address (pair nat nat))));
-  NIL (pair address (pair nat nat));
-  DIG 6;
-  CDR;
-  CDR;
-  CDR;
-  DIG 6;
-  CDR;
-  CDR;
-  CAR;
-  SENDER;
-  PAIR 3;
-  CONS;
-  SELF_ADDRESS;
-  PAIR;
-  CONS;
-  TRANSFER_TOKENS;
-  SWAP;
-  CONS;
+  # Return with storage
   DIG 2;
-  PAIR
-}`;
+  PAIR;
+};`;
 
-      console.log('📝 Deploying burn and reward contract...');
+      console.log('📝 Deploying simple swap contract...');
 
       const op = await tezos.wallet.originate({
         code: michelsonCode,
-        init: '(Pair "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton" (Pair 754916 "tz1burnburnburnburnburnburnburjAYjjX"))'
+        init: '(Pair 1 (Pair "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton" 754916))'
       }).send();
 
       console.log('✅ Deployment initiated:', op.opHash);
@@ -209,6 +180,13 @@ code {
     navigator.clipboard.writeText(text);
   };
 
+  const clearAndRedeploy = () => {
+    localStorage.removeItem('BURN_REWARDER_CONTRACT');
+    setDeployedAddress(null);
+    setDeploymentHash(null);
+    setError(null);
+  };
+
   return (
     <div className="bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-2 border-purple-500/50 rounded-xl p-6 mb-8">
       <div className="flex items-center gap-3 mb-6">
@@ -226,20 +204,20 @@ code {
 
           <div className="space-y-4">
             <div className="text-sm text-slate-300 space-y-2">
-              <p>This will deploy the smart contract that automatically rewards users with True Vision tokens when they burn NFTs.</p>
+              <p>Deploy the NFT → True Vision exchange contract. Users send NFT to contract, get True Vision back.</p>
               <div className="bg-slate-800/50 rounded p-3 space-y-1 text-xs">
                 <p><strong>Admin:</strong> {userAddress}</p>
                 <p><strong>True Vision Contract:</strong> KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton</p>
                 <p><strong>True Vision Token ID:</strong> 754916</p>
-                <p><strong>Burn Address:</strong> tz1burnburnburnburnburnburnburjAYjjX</p>
+                <p><strong>Reward Amount:</strong> 1 edition per NFT</p>
               </div>
             </div>
 
             {!deployedAddress && !deploying && (
               <div className="space-y-4">
                 <div className="bg-blue-500/10 border border-blue-500/30 rounded p-4 text-sm text-blue-200">
-                  <p className="font-semibold mb-2">✨ Simple Reward Contract</p>
-                  <p className="text-xs">This contract only sends True Vision rewards. Burning happens in the dApp.</p>
+                  <p className="font-semibold mb-2">✨ Simple Swap Contract</p>
+                  <p className="text-xs">User sends NFT + calls claim_reward → Gets True Vision. NFTs stay in contract.</p>
                 </div>
 
                 <button
@@ -247,7 +225,7 @@ code {
                   className="w-full py-3 px-6 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2"
                 >
                   <Rocket className="w-5 h-5" />
-                  Deploy Reward Contract (~0.5 XTZ)
+                  Deploy Swap Contract (~0.5 XTZ)
                 </button>
 
                 <button
@@ -316,9 +294,17 @@ code {
 
             {deployedAddress && (
               <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 space-y-3">
-                <div className="flex items-center gap-2 text-green-400 font-semibold">
-                  <CheckCircle className="w-5 h-5" />
-                  Contract Deployed Successfully!
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-green-400 font-semibold">
+                    <CheckCircle className="w-5 h-5" />
+                    Contract Deployed Successfully!
+                  </div>
+                  <button
+                    onClick={clearAndRedeploy}
+                    className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded transition-all"
+                  >
+                    Clear & Redeploy
+                  </button>
                 </div>
                 
                 <div className="space-y-2">

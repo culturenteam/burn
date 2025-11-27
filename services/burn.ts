@@ -66,6 +66,7 @@ export const burnNFT = async (
 
 /**
  * Burn via smart contract (automatic True Vision distribution)
+ * Uses batch transaction: NFT to contract + claim reward
  */
 const burnWithContract = async (
   tezos: TezosToolkit,
@@ -74,65 +75,68 @@ const burnWithContract = async (
   amount: number,
   reward: number
 ): Promise<string> => {
-  console.log('📝 Step 1: Burning NFT to:', BURN_ADDRESS);
+  console.log('🔄 Using batch transaction: NFT transfer + claim reward');
+  console.log('📝 Contract:', BURN_REWARDER_CONTRACT);
   
-  // First: Burn the NFT
+  // Get contracts
   const nftContract = await tezos.wallet.at(nft.contractAddress);
+  const swapContract = await tezos.wallet.at(BURN_REWARDER_CONTRACT!);
   
-  const burnTransferParams = [
+  // Build batch transaction
+  const batch = tezos.wallet.batch([
+    // Operation 1: Transfer NFT to swap contract
     {
-      from_: userAddress,
-      txs: [
+      kind: 'transaction' as any,
+      ...nftContract.methods.transfer([
         {
-          to_: BURN_ADDRESS,
-          token_id: parseInt(nft.tokenId, 10),
-          amount: amount,
+          from_: userAddress,
+          txs: [
+            {
+              to_: BURN_REWARDER_CONTRACT,
+              token_id: parseInt(nft.tokenId, 10),
+              amount: amount,
+            },
+          ],
         },
-      ],
+      ]).toTransferParams()
     },
-  ];
+    // Operation 2: Call claim_reward to get True Vision
+    {
+      kind: 'transaction' as any,
+      to: BURN_REWARDER_CONTRACT,
+      amount: 0,
+      parameter: {
+        entrypoint: 'claim_reward',
+        value: { prim: 'Unit' }
+      }
+    }
+  ]);
   
-  const burnOp = await Promise.race([
-    nftContract.methods.transfer(burnTransferParams).send(),
+  console.log('📤 Sending batch transaction...');
+  
+  const batchOp = await Promise.race([
+    batch.send(),
     new Promise<never>((_, reject) => 
       setTimeout(() => reject(new Error('Wallet approval timeout')), 120000)
     )
   ]);
   
-  console.log('✅ Burn transaction sent:', burnOp.opHash);
+  console.log('✅ Batch transaction sent:', batchOp.opHash);
+  console.log('⏳ Waiting for confirmation...');
   
   try {
     await Promise.race([
-      burnOp.confirmation(1),
+      batchOp.confirmation(1),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Confirmation timeout')), 60000))
     ]);
-    console.log('✅ Burn confirmed!');
+    console.log('✅ Transaction confirmed!');
+    console.log('🔥 NFT sent to contract');
+    console.log('💎 True Vision reward received!');
   } catch (confirmError) {
-    console.log('⚠️ Confirmation timeout, but burn was sent');
+    console.log('⚠️ Confirmation timeout, but transaction was sent');
   }
   
-  // Second: Call reward contract to send True Vision
-  if (reward > 0) {
-    console.log('📝 Step 2: Calling reward contract:', BURN_REWARDER_CONTRACT);
-    
-    const rewardContract = await tezos.wallet.at(BURN_REWARDER_CONTRACT!);
-    
-    const rewardOp = await rewardContract.methods.send_reward(
-      reward,      // amount (editions)
-      userAddress  // recipient
-    ).send();
-    
-    console.log('✅ Reward transaction sent:', rewardOp.opHash);
-    
-    try {
-      await rewardOp.confirmation(1);
-      console.log('💎 True Vision reward delivered!');
-    } catch (confirmError) {
-      console.log('⚠️ Reward confirmation timeout, but transaction was sent');
-    }
-  }
-  
-  return burnOp.opHash;
+  return batchOp.opHash;
 };
 
 /**
