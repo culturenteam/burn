@@ -31,7 +31,93 @@ const AdminPanel: React.FC = () => {
   };
 
   const deployWithScript = async () => {
-    setError('Contract deployment from browser is too complex. Please use one of these methods instead:\n\n1. Run: node deploy-contract.js (on your computer)\n2. Use Better Call Dev (click button below)\n3. Or just paste a deployed contract address');
+    setDeploying(true);
+    setError(null);
+    setDeployedAddress(null);
+    setDeploymentHash(null);
+
+    try {
+      console.log('🚀 Deploying simple reward contract...');
+
+      // Simple contract code - only sends rewards
+      const code = [
+        { prim: 'parameter', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'nat' }] }] },
+        { prim: 'storage', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'nat' }] }] },
+        {
+          prim: 'code',
+          args: [[
+            { prim: 'UNPAIR' },
+            { prim: 'SWAP' },
+            { prim: 'DUP' },
+            { prim: 'CAR' },
+            { prim: 'SWAP' },
+            { prim: 'CDR' },
+            { prim: 'DIG', args: [{ int: '2' }] },
+            { prim: 'DUP' },
+            { prim: 'CAR' },
+            { prim: 'SWAP' },
+            { prim: 'CDR' },
+            { prim: 'DIG', args: [{ int: '3' }] },
+            { prim: 'CONTRACT', args: [{ prim: 'list', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'list', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'pair', args: [{ prim: 'nat' }, { prim: 'nat' }] }] }] }] }] }], annots: ['%transfer'] },
+            { prim: 'IF_NONE', args: [[{ prim: 'PUSH', args: [{ prim: 'string' }, { string: 'Invalid TV contract' }] }, { prim: 'FAILWITH' }], []] },
+            { prim: 'PUSH', args: [{ prim: 'mutez' }, { int: '0' }] },
+            { prim: 'NIL', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'list', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'pair', args: [{ prim: 'nat' }, { prim: 'nat' }] }] }] }] }] },
+            { prim: 'NIL', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'pair', args: [{ prim: 'nat' }, { prim: 'nat' }] }] }] },
+            { prim: 'DIG', args: [{ int: '3' }] },
+            { prim: 'DIG', args: [{ int: '3' }] },
+            { prim: 'PAIR' },
+            { prim: 'PAIR' },
+            { prim: 'DIG', args: [{ int: '3' }] },
+            { prim: 'SWAP' },
+            { prim: 'PAIR' },
+            { prim: 'CONS' },
+            { prim: 'SELF_ADDRESS' },
+            { prim: 'PAIR' },
+            { prim: 'CONS' },
+            { prim: 'TRANSFER_TOKENS' },
+            { prim: 'NIL', args: [{ prim: 'operation' }] },
+            { prim: 'SWAP' },
+            { prim: 'CONS' },
+            { prim: 'DIG', args: [{ int: '2' }] },
+            { prim: 'PAIR' }
+          ]]
+        }
+      ];
+
+      // Simple storage: (TV_contract, TV_token_id)
+      const storage = {
+        prim: 'Pair',
+        args: [
+          { string: 'KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton' },
+          { int: '754916' }
+        ]
+      };
+
+      console.log('📝 Deploying reward sender contract...');
+
+      const origination = await tezos.wallet.originate({
+        code: code,
+        storage: storage
+      }).send();
+
+      console.log('✅ Deployment initiated:', origination.opHash);
+      setDeploymentHash(origination.opHash);
+
+      console.log('⏳ Waiting for confirmation...');
+      await origination.confirmation();
+
+      const contractAddress = origination.contractAddress;
+      console.log('🎉 Contract deployed:', contractAddress);
+
+      setDeployedAddress(contractAddress);
+      localStorage.setItem('BURN_REWARDER_CONTRACT', contractAddress);
+
+    } catch (err: any) {
+      console.error('❌ Deployment failed:', err);
+      setError(err.message || 'Deployment failed');
+    } finally {
+      setDeploying(false);
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -64,19 +150,27 @@ const AdminPanel: React.FC = () => {
               </div>
             </div>
 
-            {!deployedAddress && (
+            {!deployedAddress && !deploying && (
               <div className="space-y-4">
-                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-4 text-sm text-yellow-200">
-                  <p className="font-semibold mb-2">⚠️ Browser deployment is complex</p>
-                  <p className="text-xs">Use one of the methods below instead:</p>
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded p-4 text-sm text-blue-200">
+                  <p className="font-semibold mb-2">✨ Simple Reward Contract</p>
+                  <p className="text-xs">This contract only sends True Vision rewards. Burning happens in the dApp.</p>
                 </div>
 
                 <button
-                  onClick={openBetterCallDev}
-                  className="w-full py-3 px-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2"
+                  onClick={deployWithScript}
+                  className="w-full py-3 px-6 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2"
                 >
-                  <ExternalLink className="w-5 h-5" />
-                  Deploy on Better Call Dev
+                  <Rocket className="w-5 h-5" />
+                  Deploy Reward Contract (~0.5 XTZ)
+                </button>
+
+                <button
+                  onClick={openBetterCallDev}
+                  className="w-full py-2 px-4 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Or use Better Call Dev
                 </button>
 
                 <div className="relative">
