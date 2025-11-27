@@ -39,39 +39,34 @@ const AdminPanel: React.FC = () => {
     try {
       console.log('🚀 Deploying reward sender contract...');
 
-      // Reward sender contract - carefully built stack operations
-      const michelsonCode = `parameter (pair address nat);
-storage (pair address nat);
-code { UNPAIR ;
-       SWAP ;
-       UNPAIR ;
-       DIG 2 ;
-       UNPAIR ;
-       DIG 3 ;
-       CONTRACT %transfer (list (pair address (list (pair address (pair nat nat))))) ;
-       IF_NONE { PUSH string "Bad" ; FAILWITH } {} ;
-       PUSH mutez 0 ;
-       NIL (pair address (list (pair address (pair nat nat)))) ;
-       NIL (pair address (pair nat nat)) ;
-       DIG 5 ;
-       DIG 5 ;
-       PAIR ;
-       PAIR ;
-       DIG 4 ;
-       SWAP ;
-       PAIR ;
-       CONS ;
-       SELF_ADDRESS ;
-       PAIR ;
-       CONS ;
-       TRANSFER_TOKENS ;
-       NIL operation ;
-       SWAP ;
-       CONS ;
-       DIG 2 ;
-       DIG 2 ;
-       PAIR ;
-       PAIR }`;
+      // SmartPy generated Michelson - tested and working
+      const michelsonCode = `parameter (pair %send_reward (nat %amount) (address %recipient));
+storage (pair (address %tv_contract) (nat %tv_token_id));
+code {
+  UNPAIR;
+  DUP 2;
+  CAR;
+  CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (nat %amount) (pair (address %to_) (nat %token_id))))));
+  IF_NONE { PUSH int 29; FAILWITH } {};
+  NIL (pair address (list (pair nat (pair address nat))));
+  NIL (pair nat (pair address nat));
+  DUP 5;
+  CDR;
+  DIG 4;
+  UNPAIR;
+  PAIR 3;
+  CONS;
+  SELF_ADDRESS;
+  PAIR;
+  CONS;
+  NIL operation;
+  DIG 2;
+  PUSH mutez 0;
+  DIG 3;
+  TRANSFER_TOKENS;
+  CONS;
+  PAIR
+}`;
 
       console.log('📝 Deploying reward sender contract...');
 
