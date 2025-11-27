@@ -1,6 +1,6 @@
 """
-Simple True Vision Reward Sender Contract
-Written in SmartPy - compiles to Michelson
+Burn and Reward Contract
+User calls this contract to burn NFT and get True Vision automatically
 
 Deploy at: https://smartpy.io/ide
 """
@@ -23,53 +23,79 @@ def main():
         )
     ]
     
-    class RewardSender(sp.Contract):
-        def __init__(self, tv_contract, tv_token_id):
+    class BurnAndReward(sp.Contract):
+        def __init__(self, tv_contract, tv_token_id, burn_address):
             self.data.tv_contract = tv_contract
             self.data.tv_token_id = tv_token_id
+            self.data.burn_address = burn_address
         
         @sp.entrypoint
-        def send_reward(self, params):
-            """Send True Vision tokens to recipient"""
-            # Get the True Vision contract
+        def burn_and_reward(self, params):
+            """
+            Burn NFT and send True Vision reward
+            User calls this with their NFT details
+            Contract does everything in one transaction
+            """
+            
+            # Step 1: Transfer NFT from user to burn address
+            nft_handle = sp.contract(
+                t_transfer_params,
+                params.nft_contract,
+                entrypoint="transfer"
+            ).unwrap_some()
+            
+            nft_transfer = [
+                sp.record(
+                    from_=sp.sender,  # From the user
+                    txs=[
+                        sp.record(
+                            to_=self.data.burn_address,  # To burn address
+                            token_id=params.nft_token_id,
+                            amount=params.nft_amount
+                        )
+                    ]
+                )
+            ]
+            
+            sp.transfer(nft_transfer, sp.mutez(0), nft_handle)
+            
+            # Step 2: Transfer True Vision from contract to user
             tv_handle = sp.contract(
                 t_transfer_params,
                 self.data.tv_contract,
                 entrypoint="transfer"
             ).unwrap_some()
             
-            # Build transfer params
-            transfer_data = [
+            tv_transfer = [
                 sp.record(
-                    from_=sp.self_address,
+                    from_=sp.self_address,  # From this contract
                     txs=[
                         sp.record(
-                            to_=params.recipient,
+                            to_=sp.sender,  # To the user
                             token_id=self.data.tv_token_id,
-                            amount=params.amount
+                            amount=params.reward_amount
                         )
                     ]
                 )
             ]
             
-            # Send True Vision from this contract to recipient
-            sp.transfer(transfer_data, sp.mutez(0), tv_handle)
+            sp.transfer(tv_transfer, sp.mutez(0), tv_handle)
 
 # For deployment
 if "templates" not in __name__:
     @sp.add_test()
     def test():
-        scenario = sp.test_scenario("RewardSender", main)
-        scenario.h1("Reward Sender Test")
+        scenario = sp.test_scenario("BurnAndReward", main)
+        scenario.h1("Burn and Reward Contract Test")
         
         # Deploy contract
-        c = main.RewardSender(
+        c = main.BurnAndReward(
             tv_contract=sp.address("KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton"),
-            tv_token_id=754916
+            tv_token_id=754916,
+            burn_address=sp.address("tz1burnburnburnburnburnburnburjAYjjX")
         )
         scenario += c
         
-        # Just show the contract is deployed - don't test send_reward
-        # (would need mock FA2 contract for full test)
         scenario.h2("Contract Deployed Successfully")
-        scenario.p("Ready to send rewards!")
+        scenario.p("User calls burn_and_reward with NFT details")
+        scenario.p("Contract burns NFT and sends True Vision in ONE transaction")
