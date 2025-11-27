@@ -37,50 +37,18 @@ const AdminPanel: React.FC = () => {
     setDeploymentHash(null);
 
     try {
-      console.log('🚀 Deploying simple reward contract...');
+      console.log('🚀 Deploying simple test contract first...');
 
-      const michelsonCode = `parameter (pair address nat);
-storage (pair address nat);
-code { UNPAIR ;
-       SWAP ;
-       DUP ;
-       CAR ;
-       SWAP ;
-       CDR ;
-       DIG 2 ;
-       DUP ;
-       CAR ;
-       SWAP ;
-       CDR ;
-       DIG 3 ;
-       CONTRACT %transfer (list (pair address (list (pair address (pair nat nat))))) ;
-       IF_NONE { PUSH string "Invalid TV contract" ; FAILWITH } {} ;
-       PUSH mutez 0 ;
-       NIL (pair address (list (pair address (pair nat nat)))) ;
-       NIL (pair address (pair nat nat)) ;
-       DIG 3 ;
-       DIG 3 ;
-       PAIR ;
-       PAIR ;
-       DIG 3 ;
-       SWAP ;
-       PAIR ;
-       CONS ;
-       SELF_ADDRESS ;
-       PAIR ;
-       CONS ;
-       TRANSFER_TOKENS ;
-       NIL operation ;
-       SWAP ;
-       CONS ;
-       DIG 2 ;
-       PAIR }`;
+      // Ultra simple test contract - just stores a number
+      const michelsonCode = `parameter unit;
+storage nat;
+code { DROP ; PUSH nat 0 ; NIL operation ; PAIR }`;
 
-      console.log('📝 Deploying reward sender contract...');
+      console.log('📝 Deploying test contract...');
 
       const op = await tezos.wallet.originate({
         code: michelsonCode,
-        init: '(Pair "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton" 754916)'
+        init: '0'
       }).send();
 
       console.log('✅ Deployment initiated:', op.opHash);
