@@ -30,6 +30,73 @@ const AdminPanel: React.FC = () => {
     window.open('https://better-call.dev/mainnet/deploy', '_blank');
   };
 
+  const deployWithScript = async () => {
+    setDeploying(true);
+    setError(null);
+    setDeployedAddress(null);
+
+    try {
+      console.log('🚀 Deploying contract with Taquito...');
+
+      // Simple storage structure
+      const storage = {
+        prim: 'Pair',
+        args: [
+          { string: userAddress },
+          {
+            prim: 'Pair',
+            args: [
+              { string: 'KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton' },
+              {
+                prim: 'Pair',
+                args: [
+                  { int: '754916' },
+                  {
+                    prim: 'Pair',
+                    args: [
+                      { string: 'tz1burnburnburnburnburnburnburjAYjjX' },
+                      { prim: 'False' }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      // Fetch contract code from file
+      const response = await fetch('/contracts/burn_rewarder_final.tz');
+      const contractCode = await response.text();
+
+      console.log('📝 Contract code loaded');
+      console.log('📝 Storage:', storage);
+
+      const origination = await tezos.wallet.originate({
+        code: contractCode,
+        storage: storage
+      }).send();
+
+      console.log('✅ Deployment initiated:', origination.opHash);
+      setDeploymentHash(origination.opHash);
+
+      console.log('⏳ Waiting for confirmation...');
+      await origination.confirmation();
+
+      const contractAddress = origination.contractAddress;
+      console.log('🎉 Contract deployed:', contractAddress);
+
+      setDeployedAddress(contractAddress);
+      localStorage.setItem('BURN_REWARDER_CONTRACT', contractAddress);
+
+    } catch (err: any) {
+      console.error('❌ Deployment failed:', err);
+      setError(err.message || 'Deployment failed');
+    } finally {
+      setDeploying(false);
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
@@ -60,14 +127,22 @@ const AdminPanel: React.FC = () => {
               </div>
             </div>
 
-            {!deployedAddress && (
+            {!deployedAddress && !deploying && (
               <div className="space-y-4">
+                <button
+                  onClick={deployWithScript}
+                  className="w-full py-3 px-6 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <Rocket className="w-5 h-5" />
+                  Deploy Contract Now (~1 XTZ)
+                </button>
+
                 <button
                   onClick={openBetterCallDev}
                   className="w-full py-3 px-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2"
                 >
                   <ExternalLink className="w-5 h-5" />
-                  Deploy on Better Call Dev
+                  Or Deploy on Better Call Dev
                 </button>
 
                 <div className="relative">
@@ -109,7 +184,22 @@ const AdminPanel: React.FC = () => {
               </div>
             )}
 
-
+            {deploying && (
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <Loader className="w-5 h-5 text-blue-400 animate-spin" />
+                  <span className="text-blue-400 font-semibold">Deploying contract...</span>
+                </div>
+                {deploymentHash && (
+                  <p className="text-xs text-slate-400 ml-8">
+                    Operation: {deploymentHash.slice(0, 10)}...{deploymentHash.slice(-6)}
+                  </p>
+                )}
+                <p className="text-xs text-slate-400 ml-8 mt-1">
+                  This may take 1-2 minutes. Please wait...
+                </p>
+              </div>
+            )}
 
             {deployedAddress && (
               <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 space-y-3">
