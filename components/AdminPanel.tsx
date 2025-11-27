@@ -165,15 +165,15 @@ code { UNPAIR ;
       const origination = await tezos.wallet.originate({
         code: contractCode,
         storage: initialStorage
-      });
+      }).send();
 
       console.log('✅ Deployment initiated:', origination.opHash);
       setDeploymentHash(origination.opHash);
 
       console.log('⏳ Waiting for confirmation...');
-      const contract = await origination.contract();
+      await origination.confirmation();
 
-      const contractAddress = contract.address;
+      const contractAddress = origination.contractAddress;
       console.log('🎉 Contract deployed:', contractAddress);
 
       setDeployedAddress(contractAddress);
