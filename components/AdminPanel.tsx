@@ -39,58 +39,47 @@ const AdminPanel: React.FC = () => {
     try {
       console.log('🚀 Deploying simple reward contract...');
 
-      // Use Michelson parser
-      const { Parser } = await import('@taquito/michel-codec');
-      const parser = new Parser();
-
-      const michelsonCode = `
-        parameter (pair address nat);
-        storage (pair address nat);
-        code {
-          UNPAIR;
-          SWAP;
-          DUP;
-          CAR;
-          SWAP;
-          CDR;
-          DIG 2;
-          DUP;
-          CAR;
-          SWAP;
-          CDR;
-          DIG 3;
-          CONTRACT %transfer (list (pair address (list (pair address (pair nat nat)))));
-          IF_NONE { PUSH string "Invalid TV contract"; FAILWITH } {};
-          PUSH mutez 0;
-          NIL (pair address (list (pair address (pair nat nat))));
-          NIL (pair address (pair nat nat));
-          DIG 3;
-          DIG 3;
-          PAIR;
-          PAIR;
-          DIG 3;
-          SWAP;
-          PAIR;
-          CONS;
-          SELF_ADDRESS;
-          PAIR;
-          CONS;
-          TRANSFER_TOKENS;
-          NIL operation;
-          SWAP;
-          CONS;
-          DIG 2;
-          PAIR
-        }
-      `;
-
-      console.log('📝 Parsing Michelson code...');
-      const code = parser.parseScript(michelsonCode);
+      const michelsonCode = `parameter (pair address nat);
+storage (pair address nat);
+code { UNPAIR ;
+       SWAP ;
+       DUP ;
+       CAR ;
+       SWAP ;
+       CDR ;
+       DIG 2 ;
+       DUP ;
+       CAR ;
+       SWAP ;
+       CDR ;
+       DIG 3 ;
+       CONTRACT %transfer (list (pair address (list (pair address (pair nat nat))))) ;
+       IF_NONE { PUSH string "Invalid TV contract" ; FAILWITH } {} ;
+       PUSH mutez 0 ;
+       NIL (pair address (list (pair address (pair nat nat)))) ;
+       NIL (pair address (pair nat nat)) ;
+       DIG 3 ;
+       DIG 3 ;
+       PAIR ;
+       PAIR ;
+       DIG 3 ;
+       SWAP ;
+       PAIR ;
+       CONS ;
+       SELF_ADDRESS ;
+       PAIR ;
+       CONS ;
+       TRANSFER_TOKENS ;
+       NIL operation ;
+       SWAP ;
+       CONS ;
+       DIG 2 ;
+       PAIR }`;
 
       console.log('📝 Deploying reward sender contract...');
 
       const op = await tezos.wallet.originate({
-        code: code,
+        code: michelsonCode,
         init: '(Pair "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton" 754916)'
       }).send();
 
