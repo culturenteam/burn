@@ -10,6 +10,8 @@ const AdminPanel: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [deploymentHash, setDeploymentHash] = useState<string | null>(null);
   const [manualAddress, setManualAddress] = useState<string>('');
+  const [fundAmount, setFundAmount] = useState<string>('2');
+  const [funding, setFunding] = useState(false);
 
   // Check if user is admin
   const isAdmin = userAddress === CREATOR_ADDRESS;
@@ -23,6 +25,46 @@ const AdminPanel: React.FC = () => {
       localStorage.setItem('BURN_REWARDER_CONTRACT', manualAddress);
       setDeployedAddress(manualAddress);
       setManualAddress('');
+    }
+  };
+
+  const fundContract = async () => {
+    if (!deployedAddress) return;
+    
+    setFunding(true);
+    setError(null);
+
+    try {
+      console.log('💰 Funding contract with True Vision...');
+      
+      const amount = parseFloat(fundAmount);
+      if (isNaN(amount) || amount <= 0) {
+        throw new Error('Invalid amount');
+      }
+
+      const amountWithDecimals = Math.floor(amount * 1000000); // 6 decimals
+      
+      const tvContract = await tezos.wallet.at('KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton');
+      
+      const op = await tvContract.methods.transfer([{
+        from_: userAddress,
+        txs: [{
+          to_: deployedAddress,
+          token_id: 754916,
+          amount: amountWithDecimals
+        }]
+      }]).send();
+
+      console.log('✅ Transfer sent:', op.opHash);
+      await op.confirmation();
+      console.log('✅ Contract funded!');
+      
+      alert(`✅ Successfully funded contract with ${amount} True Vision!`);
+    } catch (err: any) {
+      console.error('❌ Funding failed:', err);
+      setError(err.message || 'Failed to fund contract');
+    } finally {
+      setFunding(false);
     }
   };
 
@@ -258,13 +300,48 @@ code {
                   </a>
                 </div>
 
+                {/* Fund Contract Section */}
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded p-4 space-y-3">
+                  <p className="text-sm font-semibold text-blue-200">💰 Fund Contract with True Vision</p>
+                  
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={fundAmount}
+                      onChange={(e) => setFundAmount(e.target.value)}
+                      placeholder="Amount"
+                      min="0.000001"
+                      step="0.1"
+                      className="flex-1 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      onClick={fundContract}
+                      disabled={funding || !fundAmount}
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-all flex items-center gap-2"
+                    >
+                      {funding ? (
+                        <>
+                          <Loader className="w-4 h-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>Send TV</>
+                      )}
+                    </button>
+                  </div>
+                  
+                  <p className="text-xs text-slate-400">
+                    Recommended: Start with 2-10 TV for testing
+                  </p>
+                </div>
+
                 <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-3 text-sm text-yellow-200">
-                  <p className="font-semibold mb-2">Next Steps:</p>
+                  <p className="font-semibold mb-2">After Funding:</p>
                   <ol className="list-decimal list-inside space-y-1 text-xs">
-                    <li>Fund the contract with True Vision tokens</li>
-                    <li>Update constants/index.ts with this address</li>
-                    <li>Rebuild and redeploy the dApp</li>
+                    <li>Contract address is saved automatically</li>
                     <li>Test with a small burn first!</li>
+                    <li>Monitor contract balance on TzKT</li>
+                    <li>Refund when balance is low</li>
                   </ol>
                 </div>
               </div>
