@@ -39,12 +39,13 @@ const AdminPanel: React.FC = () => {
     try {
       console.log('💰 Funding contract with True Vision...');
       
-      const amount = parseFloat(fundAmount);
+      const amount = parseInt(fundAmount);
       if (isNaN(amount) || amount <= 0) {
         throw new Error('Invalid amount');
       }
 
-      const amountWithDecimals = Math.floor(amount * 1000000); // 6 decimals
+      // True Vision has 0 decimals (it's an NFT with editions)
+      const amountWithDecimals = amount;
       
       const tvContract = await tezos.wallet.at('KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton');
       
@@ -311,9 +312,9 @@ code {
                       type="number"
                       value={fundAmount}
                       onChange={(e) => setFundAmount(e.target.value)}
-                      placeholder="Amount"
-                      min="0.000001"
-                      step="0.1"
+                      placeholder="Editions"
+                      min="1"
+                      step="1"
                       className="flex-1 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                     />
                     <button
@@ -333,7 +334,7 @@ code {
                   </div>
                   
                   <p className="text-xs text-slate-400">
-                    Recommended: Start with 2-10 TV for testing
+                    Whole editions only (1, 2, 5, 10...). Recommended: 5-10 for testing
                   </p>
                 </div>
 
