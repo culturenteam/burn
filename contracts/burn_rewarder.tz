@@ -1,0 +1,84 @@
+parameter (pair (address %nft_contract) (pair (nat %token_id) (pair (nat %amount) (nat %reward_amount))));
+storage (pair (address %admin) (pair (address %true_vision_contract) (pair (nat %true_vision_token_id) (pair (address %burn_address) (bool %paused)))));
+code {
+       UNPAIR;
+       # Check if paused
+       DUP 2;
+       CDR;
+       CDR;
+       CDR;
+       CDR;
+       IF { PUSH string "Contract is paused"; FAILWITH } {};
+       
+       # Extract parameters
+       DUP;
+       CAR @nft_contract;
+       DUP 2;
+       CDR;
+       CAR @token_id;
+       DUP 3;
+       CDR;
+       CDR;
+       CAR @amount;
+       DUP 4;
+       CDR;
+       CDR;
+       CDR @reward_amount;
+       
+       # Extract storage values
+       DUP 5;
+       CDR;
+       CDR;
+       CDR;
+       CAR @burn_address;
+       DUP 6;
+       CDR;
+       CAR @tv_contract;
+       DUP 7;
+       CDR;
+       CDR;
+       CAR @tv_token_id;
+       
+       # Build NFT transfer
+       NIL operation;
+       
+       # Transfer NFT to burn address
+       PUSH mutez 0;
+       NIL (pair address (list (pair address (pair nat nat))));
+       NIL (pair address (pair nat nat));
+       DIG 5; # amount
+       DIG 6; # token_id
+       PAIR;
+       DIG 6; # burn_address
+       PAIR;
+       CONS;
+       SENDER;
+       PAIR;
+       CONS;
+       TRANSFER_TOKENS;
+       CONS;
+       
+       # Transfer True Vision reward to sender
+       PUSH mutez 0;
+       NIL (pair address (list (pair address (pair nat nat))));
+       NIL (pair address (pair nat nat));
+       DIG 5; # reward_amount
+       DIG 6; # tv_token_id
+       PAIR;
+       SENDER;
+       PAIR;
+       CONS;
+       SELF_ADDRESS;
+       PAIR;
+       CONS;
+       DIG 4; # tv_contract
+       CONTRACT (list (pair address (list (pair address (pair nat nat)))));
+       IF_NONE { PUSH string "Invalid True Vision contract"; FAILWITH } {};
+       TRANSFER_TOKENS;
+       CONS;
+       
+       # Return operations and unchanged storage
+       DIG 2;
+       SWAP;
+       PAIR;
+     }
