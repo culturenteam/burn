@@ -7,7 +7,7 @@ const AdminPanel: React.FC = () => {
   const { userAddress, tezos } = useWallet();
   const [deploying, setDeploying] = useState(false);
   const [deployedAddress, setDeployedAddress] = useState<string | null>(
-    localStorage.getItem('BURN_REWARDER_CONTRACT') || 'KT1CwrQcfiAWWLvJvXvvPPNKxJNBPBPvPxXo'
+    localStorage.getItem('BURN_REWARDER_CONTRACT') || 'KT1RCUeU8BkKgRdt6pZfcQDB7FCQEhYZrghi'
   );
   const [error, setError] = useState<string | null>(null);
   const [deploymentHash, setDeploymentHash] = useState<string | null>(null);

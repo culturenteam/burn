@@ -52,7 +52,7 @@ export const TRUE_VISION = {
  * Smart contract that handles automatic True Vision distribution
  * Deployed: 2025-11-27
  */
-export const BURN_REWARDER_CONTRACT = 'KT1CwrQcfiAWWLvJvXvvPPNKxJNBPBPvPxXo';
+export const BURN_REWARDER_CONTRACT = 'KT1RCUeU8BkKgRdt6pZfcQDB7FCQEhYZrghi';
 
 /**
  * API Configuration (Phase 2)
