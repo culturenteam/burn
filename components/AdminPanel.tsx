@@ -39,65 +39,59 @@ const AdminPanel: React.FC = () => {
     try {
       console.log('🚀 Deploying simple reward contract...');
 
-      // Simple contract code - only sends rewards
-      const code = [
-        { prim: 'parameter', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'nat' }] }] },
-        { prim: 'storage', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'nat' }] }] },
-        {
-          prim: 'code',
-          args: [[
-            { prim: 'UNPAIR' },
-            { prim: 'SWAP' },
-            { prim: 'DUP' },
-            { prim: 'CAR' },
-            { prim: 'SWAP' },
-            { prim: 'CDR' },
-            { prim: 'DIG', args: [{ int: '2' }] },
-            { prim: 'DUP' },
-            { prim: 'CAR' },
-            { prim: 'SWAP' },
-            { prim: 'CDR' },
-            { prim: 'DIG', args: [{ int: '3' }] },
-            { prim: 'CONTRACT', args: [{ prim: 'list', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'list', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'pair', args: [{ prim: 'nat' }, { prim: 'nat' }] }] }] }] }] }], annots: ['%transfer'] },
-            { prim: 'IF_NONE', args: [[{ prim: 'PUSH', args: [{ prim: 'string' }, { string: 'Invalid TV contract' }] }, { prim: 'FAILWITH' }], []] },
-            { prim: 'PUSH', args: [{ prim: 'mutez' }, { int: '0' }] },
-            { prim: 'NIL', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'list', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'pair', args: [{ prim: 'nat' }, { prim: 'nat' }] }] }] }] }] },
-            { prim: 'NIL', args: [{ prim: 'pair', args: [{ prim: 'address' }, { prim: 'pair', args: [{ prim: 'nat' }, { prim: 'nat' }] }] }] },
-            { prim: 'DIG', args: [{ int: '3' }] },
-            { prim: 'DIG', args: [{ int: '3' }] },
-            { prim: 'PAIR' },
-            { prim: 'PAIR' },
-            { prim: 'DIG', args: [{ int: '3' }] },
-            { prim: 'SWAP' },
-            { prim: 'PAIR' },
-            { prim: 'CONS' },
-            { prim: 'SELF_ADDRESS' },
-            { prim: 'PAIR' },
-            { prim: 'CONS' },
-            { prim: 'TRANSFER_TOKENS' },
-            { prim: 'NIL', args: [{ prim: 'operation' }] },
-            { prim: 'SWAP' },
-            { prim: 'CONS' },
-            { prim: 'DIG', args: [{ int: '2' }] },
-            { prim: 'PAIR' }
-          ]]
-        }
-      ];
+      // Use Michelson parser
+      const { Parser } = await import('@taquito/michel-codec');
+      const parser = new Parser();
 
-      // Simple storage: (TV_contract, TV_token_id)
-      const storage = {
-        prim: 'Pair',
-        args: [
-          { string: 'KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton' },
-          { int: '754916' }
-        ]
-      };
+      const michelsonCode = `
+        parameter (pair address nat);
+        storage (pair address nat);
+        code {
+          UNPAIR;
+          SWAP;
+          DUP;
+          CAR;
+          SWAP;
+          CDR;
+          DIG 2;
+          DUP;
+          CAR;
+          SWAP;
+          CDR;
+          DIG 3;
+          CONTRACT %transfer (list (pair address (list (pair address (pair nat nat)))));
+          IF_NONE { PUSH string "Invalid TV contract"; FAILWITH } {};
+          PUSH mutez 0;
+          NIL (pair address (list (pair address (pair nat nat))));
+          NIL (pair address (pair nat nat));
+          DIG 3;
+          DIG 3;
+          PAIR;
+          PAIR;
+          DIG 3;
+          SWAP;
+          PAIR;
+          CONS;
+          SELF_ADDRESS;
+          PAIR;
+          CONS;
+          TRANSFER_TOKENS;
+          NIL operation;
+          SWAP;
+          CONS;
+          DIG 2;
+          PAIR
+        }
+      `;
+
+      console.log('📝 Parsing Michelson code...');
+      const code = parser.parseScript(michelsonCode);
 
       console.log('📝 Deploying reward sender contract...');
 
       const op = await tezos.wallet.originate({
         code: code,
-        storage: storage
+        init: '(Pair "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton" 754916)'
       }).send();
 
       console.log('✅ Deployment initiated:', op.opHash);
