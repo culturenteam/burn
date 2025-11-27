@@ -39,28 +39,25 @@ const AdminPanel: React.FC = () => {
     try {
       console.log('🚀 Deploying reward sender contract...');
 
-      // Reward sender contract
+      // Reward sender contract - carefully built stack operations
       const michelsonCode = `parameter (pair address nat);
 storage (pair address nat);
 code { UNPAIR ;
        SWAP ;
-       DUP ;
-       CAR ;
-       SWAP ;
-       CDR ;
+       UNPAIR ;
        DIG 2 ;
        UNPAIR ;
        DIG 3 ;
        CONTRACT %transfer (list (pair address (list (pair address (pair nat nat))))) ;
-       IF_NONE { PUSH string "Bad contract" ; FAILWITH } {} ;
+       IF_NONE { PUSH string "Bad" ; FAILWITH } {} ;
        PUSH mutez 0 ;
        NIL (pair address (list (pair address (pair nat nat)))) ;
        NIL (pair address (pair nat nat)) ;
-       DIG 4 ;
-       DIG 4 ;
+       DIG 5 ;
+       DIG 5 ;
        PAIR ;
        PAIR ;
-       DIG 3 ;
+       DIG 4 ;
        SWAP ;
        PAIR ;
        CONS ;
@@ -72,6 +69,8 @@ code { UNPAIR ;
        SWAP ;
        CONS ;
        DIG 2 ;
+       DIG 2 ;
+       PAIR ;
        PAIR }`;
 
       console.log('📝 Deploying reward sender contract...');
