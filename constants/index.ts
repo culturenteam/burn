@@ -49,11 +49,10 @@ export const TRUE_VISION = {
 
 /**
  * Burn Rewarder Contract
- * Smart contract that handles burn + automatic True Vision distribution
- * TODO: Deploy contract and update this address
- * See SIMPLE_SOLUTION.md for deployment instructions
+ * Smart contract that handles automatic True Vision distribution
+ * Deployed: 2025-11-27
  */
-export const BURN_REWARDER_CONTRACT = null as string | null; // Set to contract address after deployment
+export const BURN_REWARDER_CONTRACT = 'KT1CwrQcfiAWWLvJvXvvPPNKxJNBPBPvPxXo';
 
 /**
  * API Configuration (Phase 2)

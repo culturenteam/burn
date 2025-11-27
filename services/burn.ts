@@ -74,37 +74,65 @@ const burnWithContract = async (
   amount: number,
   reward: number
 ): Promise<string> => {
-  console.log('📝 Calling burn rewarder contract:', BURN_REWARDER_CONTRACT);
+  console.log('📝 Step 1: Burning NFT to:', BURN_ADDRESS);
   
-  const contract = await tezos.wallet.at(BURN_REWARDER_CONTRACT!);
+  // First: Burn the NFT
+  const nftContract = await tezos.wallet.at(nft.contractAddress);
   
-  const operation = await Promise.race([
-    contract.methods.burn_and_reward({
-      nft_contract: nft.contractAddress,
-      token_id: parseInt(nft.tokenId, 10),
-      amount: amount,
-      reward: reward
-    }).send(),
+  const burnTransferParams = [
+    {
+      from_: userAddress,
+      txs: [
+        {
+          to_: BURN_ADDRESS,
+          token_id: parseInt(nft.tokenId, 10),
+          amount: amount,
+        },
+      ],
+    },
+  ];
+  
+  const burnOp = await Promise.race([
+    nftContract.methods.transfer(burnTransferParams).send(),
     new Promise<never>((_, reject) => 
       setTimeout(() => reject(new Error('Wallet approval timeout')), 120000)
     )
   ]);
   
-  console.log('✅ Transaction sent!');
-  console.log('Operation hash:', operation.opHash);
+  console.log('✅ Burn transaction sent:', burnOp.opHash);
   
   try {
     await Promise.race([
-      operation.confirmation(1),
+      burnOp.confirmation(1),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Confirmation timeout')), 60000))
     ]);
-    console.log('✅ Transaction confirmed!');
-    console.log('💎 True Vision tokens transferred automatically!');
+    console.log('✅ Burn confirmed!');
   } catch (confirmError) {
-    console.log('⚠️ Confirmation timeout, but transaction was sent');
+    console.log('⚠️ Confirmation timeout, but burn was sent');
   }
   
-  return operation.opHash;
+  // Second: Call reward contract to send True Vision
+  if (reward > 0) {
+    console.log('📝 Step 2: Calling reward contract:', BURN_REWARDER_CONTRACT);
+    
+    const rewardContract = await tezos.wallet.at(BURN_REWARDER_CONTRACT!);
+    
+    const rewardOp = await rewardContract.methods.send_reward(
+      reward,      // amount (editions)
+      userAddress  // recipient
+    ).send();
+    
+    console.log('✅ Reward transaction sent:', rewardOp.opHash);
+    
+    try {
+      await rewardOp.confirmation(1);
+      console.log('💎 True Vision reward delivered!');
+    } catch (confirmError) {
+      console.log('⚠️ Reward confirmation timeout, but transaction was sent');
+    }
+  }
+  
+  return burnOp.opHash;
 };
 
 /**
