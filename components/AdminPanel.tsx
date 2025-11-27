@@ -171,9 +171,9 @@ code { UNPAIR ;
       setDeploymentHash(origination.opHash);
 
       console.log('⏳ Waiting for confirmation...');
-      await origination.confirmation(1);
+      const contract = await origination.contract();
 
-      const contractAddress = origination.contractAddress;
+      const contractAddress = contract.address;
       console.log('🎉 Contract deployed:', contractAddress);
 
       setDeployedAddress(contractAddress);
