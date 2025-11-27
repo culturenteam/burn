@@ -152,19 +152,14 @@ code { UNPAIR ;
     try {
       console.log('🚀 Starting contract deployment...');
 
-      const initialStorage = {
-        admin: userAddress,
-        true_vision_contract: 'KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton',
-        true_vision_token_id: 754916,
-        burn_address: 'tz1burnburnburnburnburnburnburjAYjjX',
-        paused: false
-      };
+      // Use Michelson storage format
+      const initialStorage = `(Pair "${userAddress}" (Pair "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton" (Pair 754916 (Pair "tz1burnburnburnburnburnburnburjAYjjX" False))))`;
 
       console.log('📝 Initial storage:', initialStorage);
 
       const origination = await tezos.wallet.originate({
         code: contractCode,
-        storage: initialStorage
+        init: initialStorage
       }).send();
 
       console.log('✅ Deployment initiated:', origination.opHash);
