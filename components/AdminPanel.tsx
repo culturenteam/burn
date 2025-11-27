@@ -95,18 +95,40 @@ const AdminPanel: React.FC = () => {
 
       console.log('📝 Deploying reward sender contract...');
 
-      const origination = await tezos.wallet.originate({
+      const op = await tezos.wallet.originate({
         code: code,
         storage: storage
       }).send();
 
-      console.log('✅ Deployment initiated:', origination.opHash);
-      setDeploymentHash(origination.opHash);
+      console.log('✅ Deployment initiated:', op.opHash);
+      setDeploymentHash(op.opHash);
 
-      console.log('⏳ Waiting for confirmation...');
-      await origination.confirmation();
+      console.log('⏳ Waiting for confirmation (this takes 1-2 minutes)...');
+      
+      // Wait for operation to be included
+      const result = await op.confirmation(1);
+      
+      console.log('✅ Confirmed! Getting contract address...');
+      
+      // Get the contract address from the operation
+      const operations = await tezos.rpc.getBlock();
+      const opData = operations.operations.flat().find((o: any) => o.hash === op.opHash);
+      
+      if (!opData || !opData.contents) {
+        throw new Error('Could not find operation data');
+      }
+      
+      const originationOp = opData.contents.find((c: any) => c.kind === 'origination');
+      if (!originationOp || !originationOp.metadata || !originationOp.metadata.operation_result) {
+        throw new Error('Could not find origination result');
+      }
+      
+      const contractAddress = originationOp.metadata.operation_result.originated_contracts?.[0];
+      
+      if (!contractAddress) {
+        throw new Error('No contract address in result');
+      }
 
-      const contractAddress = origination.contractAddress;
       console.log('🎉 Contract deployed:', contractAddress);
 
       setDeployedAddress(contractAddress);
