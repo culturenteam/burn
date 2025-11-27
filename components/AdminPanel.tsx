@@ -82,42 +82,85 @@ const AdminPanel: React.FC = () => {
     setDeploymentHash(null);
 
     try {
-      console.log('🚀 Deploying reward sender contract...');
+      console.log('🚀 Deploying burn and reward contract...');
 
-      // SmartPy generated Michelson - tested and working
-      const michelsonCode = `parameter (pair %send_reward (nat %amount) (address %recipient));
-storage (pair (address %tv_contract) (nat %tv_token_id));
+      // SmartPy generated Michelson - burn_and_reward entrypoint
+      const michelsonCode = `parameter (pair %burn_and_reward (address %nft_contract) (pair (nat %nft_token_id) (pair (nat %nft_amount) (nat %reward_amount))));
+storage (pair (address %tv_contract) (pair (nat %tv_token_id) (address %burn_address)));
 code {
   UNPAIR;
-  DUP 2;
+  SWAP;
+  DUP;
+  DUG 2;
   CAR;
-  CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (nat %amount) (pair (address %to_) (nat %token_id))))));
+  DIG 2;
+  DUP;
+  DUG 3;
+  CAR;
+  CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount))))));
   IF_NONE { PUSH int 29; FAILWITH } {};
-  NIL (pair address (list (pair nat (pair address nat))));
-  NIL (pair nat (pair address nat));
-  DUP 5;
+  PUSH mutez 0;
+  NIL (pair address (list (pair address (pair nat nat))));
+  NIL (pair address (pair nat nat));
+  DIG 5;
+  DUP;
+  DUG 6;
   CDR;
-  DIG 4;
-  UNPAIR;
+  CDR;
+  CAR;
+  DIG 6;
+  DUP;
+  DUG 7;
+  CDR;
+  CAR;
+  DIG 7;
+  DUP;
+  DUG 8;
+  GET 5;
+  PAIR 3;
+  CONS;
+  SENDER;
+  PAIR;
+  CONS;
+  TRANSFER_TOKENS;
+  NIL operation;
+  SWAP;
+  CONS;
+  DIG 3;
+  DUP;
+  DUG 4;
+  CAR;
+  CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount))))));
+  IF_NONE { PUSH int 58; FAILWITH } {};
+  PUSH mutez 0;
+  NIL (pair address (list (pair address (pair nat nat))));
+  NIL (pair address (pair nat nat));
+  DIG 6;
+  CDR;
+  CDR;
+  CDR;
+  DIG 6;
+  CDR;
+  CDR;
+  CAR;
+  SENDER;
   PAIR 3;
   CONS;
   SELF_ADDRESS;
   PAIR;
   CONS;
-  NIL operation;
-  DIG 2;
-  PUSH mutez 0;
-  DIG 3;
   TRANSFER_TOKENS;
+  SWAP;
   CONS;
+  DIG 2;
   PAIR
 }`;
 
-      console.log('📝 Deploying reward sender contract...');
+      console.log('📝 Deploying burn and reward contract...');
 
       const op = await tezos.wallet.originate({
         code: michelsonCode,
-        init: '(Pair "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton" 754916)'
+        init: '(Pair "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton" (Pair 754916 "tz1burnburnburnburnburnburnburjAYjjX"))'
       }).send();
 
       console.log('✅ Deployment initiated:', op.opHash);
