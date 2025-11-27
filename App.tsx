@@ -1,126 +1,250 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useWallet } from './context/WalletContext';
-import { Activity, Wallet, ShieldCheck, LogOut } from 'lucide-react';
+import { Wallet, LogOut } from 'lucide-react';
+import { Layout } from './components/Layout';
+import { Card, CardHeader } from './components/ui/Card';
+import { Button } from './components/ui/Button';
+import { Alert } from './components/ui/Alert';
+import { WalletInfo } from './components/WalletInfo';
+import { DebugInfo } from './components/DebugInfo';
+import { NFTGrid } from './components/NFTGrid';
+import { BurnModal } from './components/BurnModal';
+import { fetchNFTs } from './services/tzkt';
+import { burnNFT } from './services/burn';
+import { NFT } from './types';
+import { usePricing } from './hooks/usePricing';
 
+/**
+ * Main Application Component
+ * Phase 1: Wallet Connection ✅
+ * Phase 2: NFT Display ✅
+ * 
+ * This component demonstrates:
+ * - Wallet connection using Beacon
+ * - NFT fetching from TzKT API
+ * - Type-safe state management
+ * - Design system implementation
+ * - Error handling
+ */
 const App: React.FC = () => {
   const { 
     userAddress, 
+    isConnected,
     connectWallet, 
     disconnectWallet, 
-    loading, 
-    error 
+    loading: walletLoading, 
+    error: walletError,
+    tezos 
   } = useWallet();
 
-  const shortenAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  // NFT state
+  const [nfts, setNfts] = useState<NFT[]>([]);
+  const [nftLoading, setNftLoading] = useState(false);
+  const [nftError, setNftError] = useState<string | null>(null);
+
+  // Pricing hook - enriches NFTs with True Vision rewards
+  const { nfts: pricedNFTs, loading: pricingLoading, lastUpdate } = usePricing(nfts);
+
+  // Burn state
+  const [burnModalOpen, setBurnModalOpen] = useState(false);
+  const [selectedNFT, setSelectedNFT] = useState<NFT | null>(null);
+  const [burnAmount, setBurnAmount] = useState(1);
+  const [burning, setBurning] = useState(false);
+  const [burnSuccess, setBurnSuccess] = useState<string | null>(null);
+  const [burnError, setBurnError] = useState<string | null>(null);
+
+  // Fetch NFTs when wallet connects
+  useEffect(() => {
+    if (userAddress) {
+      loadNFTs(userAddress);
+    } else {
+      // Clear NFTs when disconnected
+      setNfts([]);
+      setNftError(null);
+    }
+  }, [userAddress]);
+
+  const loadNFTs = async (address: string) => {
+    setNftLoading(true);
+    setNftError(null);
+    
+    try {
+      const fetchedNFTs = await fetchNFTs(address);
+      setNfts(fetchedNFTs);
+    } catch (err: any) {
+      console.error('Failed to load NFTs:', err);
+      setNftError(err.message || 'Failed to load NFTs. Please try again.');
+    } finally {
+      setNftLoading(false);
+    }
+  };
+
+  const handleBurnRequest = (nft: NFT, amount: number) => {
+    setSelectedNFT(nft);
+    setBurnAmount(amount);
+    setBurnModalOpen(true);
+    setBurnSuccess(null);
+    setBurnError(null);
+  };
+
+  const handleBurnConfirm = async () => {
+    if (!selectedNFT || !userAddress) return;
+
+    setBurning(true);
+    setBurnError(null);
+
+    try {
+      const txHash = await burnNFT(tezos, userAddress, selectedNFT, burnAmount);
+      
+      console.log('✅ Burn transaction sent! TX:', txHash);
+      setBurnSuccess(
+        `Burn transaction sent! Check status: https://tzkt.io/${txHash}`
+      );
+      
+      // Close modal and refresh after showing success
+      setTimeout(() => {
+        setBurnModalOpen(false);
+        // Reload NFTs after a delay to allow blockchain to update
+        setTimeout(() => {
+          loadNFTs(userAddress);
+        }, 5000); // Wait 5 seconds before refreshing
+      }, 3000);
+      
+    } catch (err: any) {
+      console.error('❌ Burn failed:', err);
+      setBurnError(err.message || 'Failed to burn NFT. Please try again.');
+      setBurning(false);
+    }
+  };
+
+  const handleBurnCancel = () => {
+    setBurnModalOpen(false);
+    setSelectedNFT(null);
+    setBurnAmount(1);
+    setBurnError(null);
   };
 
   return (
-    <div className="min-h-screen bg-dark text-slate-200 flex flex-col font-sans selection:bg-tezos selection:text-white">
-      {/* Header */}
-      <header className="border-b border-slate-800 bg-dark/50 backdrop-blur-md sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="bg-tezos/20 p-2 rounded-lg">
-              <Activity className="w-6 h-6 text-tezos" />
-            </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-tezos to-blue-400">
-              Tezos dApp
-            </span>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            {userAddress && (
-              <div className="hidden sm:flex items-center space-x-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-xs font-medium text-green-500">Ghostnet Active</span>
+    <>
+      <Layout isConnected={isConnected}>
+        {!isConnected ? (
+          // Connection screen
+          <div className="min-h-[60vh] flex items-center justify-center px-8">
+            <div className="max-w-2xl w-full border-4 border-black p-12 bg-white space-y-8">
+              <div className="space-y-4">
+                <h2 className="text-4xl font-bold uppercase tracking-tight">CONNECT</h2>
+                <p className="text-sm uppercase tracking-wider">
+                  TEZOS MAINNET / BEACON PROTOCOL
+                </p>
               </div>
-            )}
-          </div>
-        </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="flex-grow flex items-center justify-center p-4 relative overflow-hidden">
-        
-        {/* Background Decorative Elements */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-tezos/10 rounded-full blur-3xl -z-10" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl -z-10" />
-
-        <div className="max-w-md w-full">
-          <div className="bg-card border border-slate-700/50 shadow-2xl rounded-2xl p-8 space-y-8">
-            
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold text-white">
-                {userAddress ? 'Welcome Back' : 'Connect Wallet'}
-              </h1>
-              <p className="text-slate-400">
-                {userAddress 
-                  ? 'You are connected to the Tezos Ghostnet.' 
-                  : 'Interact with the Tezos blockchain securely.'}
-              </p>
-            </div>
-
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-sm text-red-400 text-center">
-                {error}
-              </div>
-            )}
-
-            {userAddress ? (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700 flex items-center justify-between group hover:border-tezos/50 transition-colors">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-tezos rounded-lg shadow-lg shadow-tezos/20">
-                      <Wallet className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Connected Address</p>
-                      <p className="text-lg font-mono text-white">{shortenAddress(userAddress)}</p>
-                    </div>
-                  </div>
-                  <ShieldCheck className="w-5 h-5 text-green-500" />
+              {walletError && (
+                <div className="border-4 border-brutal-red bg-white p-4">
+                  <p className="font-bold uppercase text-sm">{walletError}</p>
                 </div>
+              )}
 
-                <button
-                  onClick={disconnectWallet}
-                  className="w-full group flex items-center justify-center space-x-2 py-3 px-4 bg-slate-800 hover:bg-red-500/10 text-slate-300 hover:text-red-500 border border-slate-700 hover:border-red-500/50 rounded-xl transition-all duration-200 font-medium"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Disconnect Wallet</span>
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="space-y-4">
                 <button
                   onClick={connectWallet}
-                  disabled={loading}
-                  className="w-full py-4 px-6 bg-gradient-to-r from-tezos to-blue-600 hover:from-blue-600 hover:to-tezos text-white font-bold rounded-xl shadow-lg shadow-tezos/25 hover:shadow-tezos/40 transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                  disabled={walletLoading}
+                  className="w-full py-4 px-6 bg-black hover:bg-brutal-red text-white border-4 border-black font-bold uppercase text-lg tracking-wider transition-colors disabled:opacity-50 flex items-center justify-center space-x-3"
                 >
-                  {loading ? (
+                  {walletLoading ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>Connecting...</span>
+                      <div className="w-5 h-5 border-4 border-white border-t-transparent animate-spin"></div>
+                      <span>CONNECTING...</span>
                     </>
                   ) : (
                     <>
-                      <Wallet className="w-5 h-5" />
-                      <span>Connect Beacon Wallet</span>
+                      <Wallet className="w-6 h-6" />
+                      <span>CONNECT WALLET</span>
                     </>
                   )}
                 </button>
-                <p className="text-xs text-center text-slate-500">
-                  By connecting, you agree to interact with the Tezos Ghostnet Testnet.
+                
+                <p className="text-xs text-center uppercase tracking-wider">
+                  MAINNET ONLY / REAL ASSETS / PERMANENT ACTIONS
                 </p>
               </div>
-            )}
+            </div>
           </div>
-        </div>
-      </main>
-    </div>
+        ) : (
+          // Connected - show NFTs
+          <div className="w-full">
+            {/* Wallet info bar */}
+            <div className="border-b-4 border-black px-8 py-4 bg-brutal-gray">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="text-xs uppercase tracking-wider font-bold">CONNECTED</div>
+                  <div className="font-mono text-sm">{userAddress}</div>
+                </div>
+                <button
+                  onClick={disconnectWallet}
+                  className="px-4 py-2 bg-white hover:bg-black hover:text-white border-2 border-black font-bold uppercase text-xs tracking-wider transition-colors flex items-center space-x-2"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span>DISCONNECT</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Success/Error Messages */}
+            {burnSuccess && (
+              <div className="px-8 py-4 border-b-4 border-black bg-white">
+                <div className="border-4 border-black p-4 space-y-2">
+                  <p className="font-bold uppercase text-sm">
+                    TRANSACTION SENT
+                  </p>
+                  <p className="text-xs uppercase tracking-wider">
+                    REFRESHING IN 5 SECONDS / BLOCKCHAIN CONFIRMATION PENDING
+                  </p>
+                  {burnSuccess.includes('tzkt.io') && (
+                    <a
+                      href={burnSuccess.split('Check status: ')[1]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs uppercase tracking-wider underline hover:text-brutal-red inline-block mt-2"
+                    >
+                      VIEW ON TZKT →
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* NFT Grid */}
+            <NFTGrid 
+              nfts={pricedNFTs} 
+              loading={nftLoading || pricingLoading} 
+              error={nftError} 
+              onBurn={handleBurnRequest} 
+            />
+          </div>
+        )}
+      </Layout>
+      
+      {/* Debug Info Component */}
+      <DebugInfo />
+
+      {/* Burn Modal */}
+      {burnModalOpen && selectedNFT && (
+        <>
+          <BurnModal
+            nft={selectedNFT}
+            amount={burnAmount}
+            onConfirm={handleBurnConfirm}
+            onCancel={handleBurnCancel}
+            isProcessing={burning}
+          />
+          {burnError && (
+            <div className="fixed bottom-4 right-4 z-[60] max-w-md animate-in slide-in-from-bottom-4">
+              <Alert type="error" message={burnError} />
+            </div>
+          )}
+        </>
+      )}
+    </>
   );
 };
 
