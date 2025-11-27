@@ -6,7 +6,9 @@ import { CREATOR_ADDRESS } from '../constants';
 const AdminPanel: React.FC = () => {
   const { userAddress, tezos } = useWallet();
   const [deploying, setDeploying] = useState(false);
-  const [deployedAddress, setDeployedAddress] = useState<string | null>(null);
+  const [deployedAddress, setDeployedAddress] = useState<string | null>(
+    localStorage.getItem('BURN_REWARDER_CONTRACT') || 'KT1CwrQcfiAWWLvJvXvvPPNKxJNBPBPvPxXo'
+  );
   const [error, setError] = useState<string | null>(null);
   const [deploymentHash, setDeploymentHash] = useState<string | null>(null);
   const [manualAddress, setManualAddress] = useState<string>('');
