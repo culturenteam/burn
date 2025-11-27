@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useWallet } from '../context/WalletContext';
-import { Shield, Rocket, CheckCircle, AlertCircle, Loader, Copy } from 'lucide-react';
+import { Shield, Rocket, CheckCircle, AlertCircle, Loader, Copy, ExternalLink } from 'lucide-react';
 import { CREATOR_ADDRESS } from '../constants';
 
 const AdminPanel: React.FC = () => {
@@ -9,6 +9,7 @@ const AdminPanel: React.FC = () => {
   const [deployedAddress, setDeployedAddress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deploymentHash, setDeploymentHash] = useState<string | null>(null);
+  const [manualAddress, setManualAddress] = useState<string>('');
 
   // Check if user is admin
   const isAdmin = userAddress === CREATOR_ADDRESS;
@@ -17,171 +18,16 @@ const AdminPanel: React.FC = () => {
     return null; // Don't show anything if not admin
   }
 
-  const contractCode = `parameter (or (pair %burn_and_reward
-                    (address %nft_contract)
-                    (pair (nat %token_id)
-                          (pair (nat %amount)
-                                (nat %reward_amount))))
-              (or (bool %set_paused)
-                  (address %update_admin)));
-storage (pair (address %admin)
-              (pair (address %true_vision_contract)
-                    (pair (nat %true_vision_token_id)
-                          (pair (address %burn_address)
-                                (bool %paused)))));
-code { UNPAIR ;
-       IF_LEFT
-         { SWAP ;
-           DUP ;
-           DUG 2 ;
-           GET 9 ;
-           IF { PUSH string "CONTRACT_PAUSED" ; FAILWITH } {} ;
-           SWAP ;
-           DUP ;
-           DUG 2 ;
-           GET 7 ;
-           SWAP ;
-           DUP ;
-           DUG 2 ;
-           GET 3 ;
-           SWAP ;
-           DUP ;
-           DUG 2 ;
-           GET 5 ;
-           SWAP ;
-           DUP ;
-           DUG 2 ;
-           CAR ;
-           SWAP ;
-           DUP ;
-           DUG 2 ;
-           GET 3 ;
-           SWAP ;
-           DUP ;
-           DUG 2 ;
-           GET 5 ;
-           SWAP ;
-           GET 7 ;
-           NIL operation ;
-           DIG 4 ;
-           CONTRACT %transfer (list (pair address
-                                         (list (pair address (pair nat nat))))) ;
-           IF_NONE { PUSH string "INVALID_NFT_CONTRACT" ; FAILWITH } {} ;
-           PUSH mutez 0 ;
-           NIL (pair address (list (pair address (pair nat nat)))) ;
-           NIL (pair address (pair nat nat)) ;
-           DIG 6 ;
-           DIG 7 ;
-           DIG 8 ;
-           PAIR 3 ;
-           CONS ;
-           SENDER ;
-           PAIR ;
-           CONS ;
-           TRANSFER_TOKENS ;
-           CONS ;
-           DIG 2 ;
-           CONTRACT %transfer (list (pair address
-                                         (list (pair address (pair nat nat))))) ;
-           IF_NONE { PUSH string "INVALID_TV_CONTRACT" ; FAILWITH } {} ;
-           PUSH mutez 0 ;
-           NIL (pair address (list (pair address (pair nat nat)))) ;
-           NIL (pair address (pair nat nat)) ;
-           DIG 3 ;
-           DIG 3 ;
-           SENDER ;
-           PAIR 3 ;
-           CONS ;
-           SELF_ADDRESS ;
-           PAIR ;
-           CONS ;
-           TRANSFER_TOKENS ;
-           CONS ;
-           DIG 2 ;
-           NIL operation ;
-           PAIR }
-         { IF_LEFT
-             { SWAP ;
-               DUP ;
-               DUG 2 ;
-               CAR ;
-               SENDER ;
-               COMPARE ;
-               EQ ;
-               IF {} { PUSH string "NOT_ADMIN" ; FAILWITH } ;
-               SWAP ;
-               UNPAIR ;
-               SWAP ;
-               UNPAIR ;
-               SWAP ;
-               UNPAIR ;
-               SWAP ;
-               UNPAIR ;
-               SWAP ;
-               DROP ;
-               DIG 4 ;
-               PAIR ;
-               SWAP ;
-               PAIR ;
-               SWAP ;
-               PAIR ;
-               SWAP ;
-               PAIR ;
-               NIL operation }
-             { SWAP ;
-               DUP ;
-               DUG 2 ;
-               CAR ;
-               SENDER ;
-               COMPARE ;
-               EQ ;
-               IF {} { PUSH string "NOT_ADMIN" ; FAILWITH } ;
-               SWAP ;
-               CDR ;
-               SWAP ;
-               PAIR ;
-               NIL operation } } ;
-       PAIR }`;
-
-  const deployContract = async () => {
-    setDeploying(true);
-    setError(null);
-    setDeployedAddress(null);
-    setDeploymentHash(null);
-
-    try {
-      console.log('🚀 Starting contract deployment...');
-
-      // Use Michelson storage format
-      const initialStorage = `(Pair "${userAddress}" (Pair "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton" (Pair 754916 (Pair "tz1burnburnburnburnburnburnburjAYjjX" False))))`;
-
-      console.log('📝 Initial storage:', initialStorage);
-
-      const origination = await tezos.wallet.originate({
-        code: contractCode,
-        init: initialStorage
-      }).send();
-
-      console.log('✅ Deployment initiated:', origination.opHash);
-      setDeploymentHash(origination.opHash);
-
-      console.log('⏳ Waiting for confirmation...');
-      await origination.confirmation();
-
-      const contractAddress = origination.contractAddress;
-      console.log('🎉 Contract deployed:', contractAddress);
-
-      setDeployedAddress(contractAddress);
-      
-      // Save to localStorage
-      localStorage.setItem('BURN_REWARDER_CONTRACT', contractAddress);
-
-    } catch (err: any) {
-      console.error('❌ Deployment failed:', err);
-      setError(err.message || 'Deployment failed');
-    } finally {
-      setDeploying(false);
+  const saveContractAddress = () => {
+    if (manualAddress && manualAddress.startsWith('KT1')) {
+      localStorage.setItem('BURN_REWARDER_CONTRACT', manualAddress);
+      setDeployedAddress(manualAddress);
+      setManualAddress('');
     }
+  };
+
+  const openBetterCallDev = () => {
+    window.open('https://better-call.dev/mainnet/deploy', '_blank');
   };
 
   const copyToClipboard = (text: string) => {
@@ -214,32 +60,56 @@ code { UNPAIR ;
               </div>
             </div>
 
-            {!deployedAddress && !deploying && (
-              <button
-                onClick={deployContract}
-                className="w-full py-3 px-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2"
-              >
-                <Rocket className="w-5 h-5" />
-                Deploy Contract (~1 XTZ)
-              </button>
-            )}
+            {!deployedAddress && (
+              <div className="space-y-4">
+                <button
+                  onClick={openBetterCallDev}
+                  className="w-full py-3 px-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <ExternalLink className="w-5 h-5" />
+                  Deploy on Better Call Dev
+                </button>
 
-            {deploying && (
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <Loader className="w-5 h-5 text-blue-400 animate-spin" />
-                  <span className="text-blue-400 font-semibold">Deploying contract...</span>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-600"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-slate-900/50 text-slate-400">Or enter deployed address</span>
+                  </div>
                 </div>
-                {deploymentHash && (
-                  <p className="text-xs text-slate-400 ml-8">
-                    Operation: {deploymentHash.slice(0, 10)}...{deploymentHash.slice(-6)}
-                  </p>
-                )}
-                <p className="text-xs text-slate-400 ml-8 mt-1">
-                  This may take 1-2 minutes. Please wait...
-                </p>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={manualAddress}
+                    onChange={(e) => setManualAddress(e.target.value)}
+                    placeholder="KT1..."
+                    className="flex-1 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                  />
+                  <button
+                    onClick={saveContractAddress}
+                    disabled={!manualAddress || !manualAddress.startsWith('KT1')}
+                    className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-all"
+                  >
+                    Save
+                  </button>
+                </div>
+
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded p-3 text-xs text-blue-200">
+                  <p className="font-semibold mb-1">📋 Deployment Instructions:</p>
+                  <ol className="list-decimal list-inside space-y-1 ml-2">
+                    <li>Click "Deploy on Better Call Dev"</li>
+                    <li>Paste contract code from <code className="bg-slate-800 px-1 rounded">contracts/burn_rewarder_final.tz</code></li>
+                    <li>Set storage with your address</li>
+                    <li>Deploy and copy the contract address</li>
+                    <li>Paste address above and click Save</li>
+                  </ol>
+                </div>
               </div>
             )}
+
+
 
             {deployedAddress && (
               <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 space-y-3">
