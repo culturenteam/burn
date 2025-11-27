@@ -118,7 +118,7 @@ const burnManual = async (
   reward: number
 ): Promise<string> => {
   console.log('📝 Burning NFT to:', BURN_ADDRESS);
-  console.log('💎 Reward will be distributed manually:', reward, 'TV');
+  console.log('💎 Reward:', reward, 'TV');
   
   const nftContract = await tezos.wallet.at(nft.contractAddress);
   
@@ -142,7 +142,7 @@ const burnManual = async (
     )
   ]);
   
-  console.log('✅ Transaction sent!');
+  console.log('✅ Burn transaction sent!');
   console.log('Operation hash:', operation.opHash);
   
   try {
@@ -150,13 +150,50 @@ const burnManual = async (
       operation.confirmation(1),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Confirmation timeout')), 60000))
     ]);
-    console.log('✅ Transaction confirmed!');
-    console.log('💎 True Vision reward of', reward, 'TV will be sent by creator');
+    console.log('✅ Burn confirmed!');
+    
+    // If creator is connected, send reward immediately
+    const connectedAddress = await tezos.wallet.pkh();
+    if (connectedAddress === CREATOR_ADDRESS && reward > 0) {
+      console.log('💎 Creator connected - sending True Vision reward...');
+      await sendTrueVisionReward(tezos, userAddress, reward);
+    } else {
+      console.log('💎 True Vision reward of', reward, 'TV will be sent by creator');
+    }
   } catch (confirmError) {
     console.log('⚠️ Confirmation timeout, but transaction was sent');
   }
   
   return operation.opHash;
+};
+
+/**
+ * Send True Vision reward (creator only)
+ */
+const sendTrueVisionReward = async (
+  tezos: TezosToolkit,
+  recipient: string,
+  amount: number
+): Promise<void> => {
+  try {
+    const tvContract = await tezos.wallet.at(TRUE_VISION.contractAddress);
+    
+    const operation = await tvContract.methods.transfer([{
+      from_: CREATOR_ADDRESS,
+      txs: [{
+        to_: recipient,
+        token_id: TRUE_VISION.tokenId,
+        amount: amount
+      }]
+    }]).send();
+    
+    console.log('💎 True Vision transfer sent:', operation.opHash);
+    await operation.confirmation(1);
+    console.log('✅ True Vision reward delivered!');
+  } catch (error) {
+    console.error('❌ Failed to send True Vision reward:', error);
+    throw new Error('Burn succeeded but reward failed. Please send manually.');
+  }
 };
 
 /**
